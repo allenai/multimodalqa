@@ -1,17 +1,28 @@
+# MultiModalQA: Complex Question Answering over Text, Tables and Images
 
-# Multi-Modal QA Dataset Format
+MultiModalQA is a challenging question answering dataset that requires joint reasoning over text, tables and images, consisting of 29,918 examples. This repository contains the MultiModalQA dataset, format description, and link to the images file.
 
-The dataset is constructed from QA files and context files:
+For more details check out our ICLR21 paper ["MultiModalQA: Complex Question Answering over Text, Tables and Images"](https://openreview.net/pdf?id=ee6W5UgQLa),
+and [website](https://allenai.github.io/multimodalqa/).  
+
+
+### Changelog
+
+- `23/04/2021` Initial release. 
+
+
+
+# MultiModalQA Dataset Format
+
+In dataset folder you will find the following file question and contexts files:
 1) `MultiModalQA_train/dev/test.jsonl.gz` - contains questions and answers, for train, dev and test set respectively
 2) `tables.jsonl.gz` - contains the tables contexts
 3) `texts.jsonl.gz` - contains the texts contexts
-4) `images.jsonl.gz` - contains the metadata of the images contexts
-5) `images` - a directory contains the images contexts
+4) `images.jsonl.gz` - contains the metadata of the images, the images themselves can be downloaded from [images.zip](https://s3.console.aws.amazon.com/s3/object/multimodalqa-images?region=us-west-2&prefix=final_dataset_images/final_dataset_images.zip) 
 
 # QA Files Format
 
-Each line of the files `MultiModalQA_train/dev.jsonl.gz` contains one question, 
-along with its answers, metadata and supporting context pointers (context supports the answers for this questions)
+Each line of the examples files (e.g. `MultiModalQA_train/dev.jsonl.gz`) contains one question, alongside its answers, metadata (described below, the all related context documents will be found there) and supporting context ids (the exact context ids that contain the answers and intermediate answers)
 
 ```json
 {
@@ -30,17 +41,16 @@ along with its answers, metadata and supporting context pointers (context suppor
 }
 ```
 
-`MultiModalQA_test.jsonl.gz` contains lines with the same format as above, only that the `answers` 
-and `supporting_context` fields are removed.
+`MultiModalQA_test.jsonl.gz` contains is of similar format, but does not contain `answers` 
+nor `supporting_context`.
 
 ## A Single Answer
 
-Each answer in `answers` field of each question contains a string or a yesno answer,
-along with specification of the supporting context of that answer:
+Each answer in the `answers` field contains an answer string that may be of type string or yesno, each answer points to the text, table or image context documents where it can be found (see context files for matching ids):
 
 ```json
 {
-  "answer": "AnswerText",
+  "answer": "some string here",
   "type": "string/yesno",
   "modality": "text/image/table",
   "text_instances": [{
@@ -59,11 +69,9 @@ along with specification of the supporting context of that answer:
 
 ## A Single Question Metadata
 
-The metadata of each question contains its type, modalities required to solve it, the wiki entities appear 
-in the question and in the answers, the machine generated question (the question before human rephrasing), 
-metadata about the rephrasing process, a list of texts docs and image docs that are part of the context for
-this question (supporting context + distractors), a pointer to the related table, 
-and a list of intermediate answers (the answers of the sub-questions composing the multi-modal question)  
+The metadata of each question contains its type, modalities required to solve it, the wikipedia entities that appear in the question and in the answers, the machine generated question (the question before human rephrasing), as well as an annotation field containing the rephrasing accuracy and confidence (between 0 and 1), and a list of texts docs ids and image docs ids and table id that are part of the full context for
+this question (some context docs contain the answer and some are distractors).
+We include a list of intermediate answers, these are the answers of the sub-questions composing the multi-modal question, providing supervision for multi-step training.  
 
 ```json
 {
@@ -94,16 +102,14 @@ and a list of intermediate answers (the answers of the sub-questions composing t
       "498369348c988d866b5fac0add45bac5",
       "57686242cf542e30cbad13037017b478"
     ],
-    "intermediate_answers": ["answer1", "answer2"],  # provided in the same format described above
+    "intermediate_answers": ["single_answer_format(1)", "single_answer_format(2)"], 
     "table_id": "46ae2a8e7928ed5a8e5f9c59323e5e49"
   }
 ```
 
 # A Single Table Format
 
-Each line of `tables.jsonl.gz` represents a single table. `table_rows` is a list of rows, where each row
-is a list of cells. Each cell is provided with its text and wiki entities. `header` provides for each column in the talble
-its name along with parsing metadata extracted from it such as NERs and items type. 
+Each line of `tables.jsonl.gz` represents a single table. `table_rows` is a list of rows, and each row contains is a list of cells. Each cell is provided with its text string and wikipedia entities. `header` provides for each column in the table: its name alongside parsing metadata computed such as NERs and item types. 
 
 ```json
 {
@@ -151,8 +157,7 @@ its name along with parsing metadata extracted from it such as NERs and items ty
 
 # A Single Image Metadata Format
 
-Each line in `images.jsonl.gz` holds metadata for a single image. The `path` provided points to the image file
-in the provided images directory.
+Each line in `images.jsonl.gz` holds metadata for each image. The `path` provided points to the image file  in the provided images directory.
 
 ```json
 {
