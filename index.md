@@ -11,8 +11,8 @@ For more details check out our ICLR21
 paper ["MultiModalQA: Complex Question Answering over Text, Tables and Images"](https://openreview.net/pdf?id=ee6W5UgQLa),
 
 <center>
-    <a href="https://allenai.github.io/Break/figures/intro.png"> 
-        <img src="figures/intro.png" height="200">
+    <a href="https://allenai.github.io/MultiModalQA/figures/intro.png"> 
+        <img src="figures/intro.png" height="350">
       </a>
 </center>
 
@@ -34,4 +34,4 @@ Berant}, booktitle={International Conference on Learning Representations}, year=
 ## **Download**
 
 - For the full documentation of the dataset and its format please refer to our [Github repository](https://github.com/allenai/MultiModalQA).
-- Click here to see [MultiModalQA dataset](https://github.com/allenai/MultiModalQA/dataset).
+- Click here to see [MultiModalQA dataset](https://github.com/allenai/multimodalqa/tree/master/dataset).

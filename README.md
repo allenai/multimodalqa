@@ -14,7 +14,7 @@ and [website](https://allenai.github.io/multimodalqa/).
 
 # MultiModalQA Dataset Format
 
-In dataset folder you will find the following file question and contexts files:
+In the [dataset](https://github.com/allenai/multimodalqa/tree/master/dataset) folder you will find the following file question and contexts files:
 1) `MultiModalQA_train/dev/test.jsonl.gz` - contains questions and answers, for train, dev and test set respectively
 2) `tables.jsonl.gz` - contains the tables contexts
 3) `texts.jsonl.gz` - contains the texts contexts
