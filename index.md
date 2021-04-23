@@ -19,8 +19,7 @@ paper ["MultiModalQA: Complex Question Answering over Text, Tables and Images"](
 
 ## **Paper**
 
-[**MultiModalQA: Complex Question Answering over Text, Tables and Images
-**](https://arxiv.org/abs/2104.06039)  
+[MultiModalQA: Complex Question Answering over Text, Tables and Images](https://arxiv.org/abs/2104.06039)  
 Alon Talmor, Ori Yoran, Amnon Catav, Dan Lahav, Yizhong Wang, Akari Asai, Gabriel Ilharco, Hannaneh Hajishirzi, Jonathan Berant
 *ICRL 2021*
 
