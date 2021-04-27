@@ -18,7 +18,7 @@ In the [dataset](https://github.com/allenai/multimodalqa/tree/master/dataset) fo
 1) `MultiModalQA_train/dev/test.jsonl.gz` - contains questions and answers, for train, dev and test set respectively
 2) `tables.jsonl.gz` - contains the tables contexts
 3) `texts.jsonl.gz` - contains the texts contexts
-4) `images.jsonl.gz` - contains the metadata of the images, the images themselves can be downloaded from [images.zip](https://s3.console.aws.amazon.com/s3/object/multimodalqa-images?region=us-west-2&prefix=final_dataset_images/final_dataset_images.zip) 
+4) `images.jsonl.gz` - contains the metadata of the images, the images themselves can be downloaded from [images.zip](https://multimodalqa-images.s3-us-west-2.amazonaws.com/final_dataset_images/final_dataset_images.zip) 
 
 # QA Files Format
 
