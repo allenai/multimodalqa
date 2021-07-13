@@ -10,7 +10,7 @@ source activate multimodalqa_image
 ### Run training
 
 ```
- python baselines/image_only_baseline/main.py
+ python baselines/image_qa/main.py
 ```
 
 A full list of arguments is present in the file main.py
