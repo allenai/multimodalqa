@@ -1,9 +1,17 @@
 .vscode/
 notebooks/node_modules/
 notebooks/package-lock.json
+dataset/*.jsonl
+dataset/img
+dataset/cache
+dataset/img_features
 baselines/data/
 baselines/output/
 baselines/image_qa/training_stats/
+baselines/image_qa/checkpoints/
+deps/vilbert-multi-task/data/
+deps/vilbert-multi-task/save/
+deps/vilbert-multi-task/multi_task_model*
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

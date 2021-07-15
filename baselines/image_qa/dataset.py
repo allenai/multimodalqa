@@ -60,61 +60,10 @@ def zip_images(data_dir, splits):
             z.write(filename)
 
 
-def download_images(data_dir, splits):
-    img_base_url = 'https://multimodalqa-images.s3-us-west-2.amazonaws.com/'
-    os.makedirs(os.path.join(data_dir, 'img'), exist_ok=True)
-    img_urls = {}
-    for split in splits:
-        print('Processing split %s' % split)
-        filename = os.path.join(data_dir, 'MultiModalQA_%s.jsonl' % split)
-        with open(filename, 'r') as f:
-            data = [json.loads(l.strip()) for l in f.readlines()]
-        for d in data:
-            context = d['context']
-            qas = d['qas']
-            _, local_img_urls = process_context_and_qas(context, qas)
-            for img_id, img_url in local_img_urls.items():
-                img_urls[img_id] = img_url
-    
-    print('Downloading %d images' % len(img_urls))
-    img_paths = {}
-    img_dir = os.path.join(data_dir, 'img')
-    if not os.path.exists(img_dir):
-        os.makedirs(img_dir, exist_ok=True)
-    svg_failures = {}
-    for img_id, img_url in tqdm(img_urls.items()):
-        img_path = os.path.join(img_dir, img_url[4:].replace('/', '|'))
-        if not os.path.exists(img_path):
-            urllib.request.urlretrieve(
-                img_base_url + urllib.parse.quote(img_url), img_path)
-        if img_path.endswith('svg'):
-            try:
-                svg_img_path = img_path
-                png_img_path = img_path[:-3] + 'png'
-                img_paths[img_id] = png_img_path
-                if os.path.exists(png_img_path):
-                    continue
-                cmd_list = [
-                    'rsvg-convert', '--format=png', 
-                    '--output=%s' % png_img_path, svg_img_path]
-                p = subprocess.Popen(cmd_list, stdout=subprocess.PIPE, stderr=subprocess.PIPE )
-                out, err = p.communicate()
-                
-                if p.returncode:
-                    raise Exception('Error: %s. Out: %s' % ((err or '?'), (out or '?')))
-            except Exception as e:
-                svg_failures[img_id] = e
-                print('Warning: skipping svg image "%s" due to error: %s' % (img_id, e))
-                del img_paths[img_id]
-        else:
-            img_paths[img_id] = img_path
-    
-    if svg_failures:
-        print('Had %d errors when converting svg images.' % len(svg_failures))
-        print('Unique failures:')
-        for failure in set([str(e) for e in svg_failures.values()]):
-            print(failure)
-    return img_paths
+def read_jsonl(filename):
+    with open(filename, 'r') as f:
+        data = [json.loads(l.strip()) for l in f.readlines()]
+    return data
 
 
 def get_img_features(data_dir, img_paths):
@@ -124,17 +73,21 @@ def get_img_features(data_dir, img_paths):
     feature_extractor = None
     img_feature_filenames = {}
     for img_id, img_path in tqdm(img_paths.items()):
-        if img_id in img_feature_filenames:
-            continue
-        filename =  os.path.splitext(os.path.basename(img_path))[0] + '.pickle'
-        full_filename = os.path.join(img_features_dir, filename)
-        img_feature_filenames[img_id] = full_filename
-        if os.path.exists(full_filename):
-            continue
-        if feature_extractor is None:
-            feature_extractor = FeatureExtractor()
-        features = feature_extractor.extract_features(img_path)
-        pickle.dump(features, open(full_filename, 'wb'))
+        try:
+            if img_id in img_feature_filenames:
+                continue
+            filename =  os.path.splitext(os.path.basename(img_path))[0] + '.pickle'
+            full_filename = os.path.join(img_features_dir, filename)
+            img_feature_filenames[img_id] = full_filename
+            if os.path.exists(full_filename):
+                continue
+            if feature_extractor is None:
+                feature_extractor = FeatureExtractor()
+            features = feature_extractor.extract_features(img_path)
+            pickle.dump(features, open(full_filename, 'wb'))
+        except Exception as e:
+            print('='*80)
+            print(f'Skipping image {img_id} due to error: {e}')
     print('Done extracting image features.')
     return img_feature_filenames
 
@@ -154,36 +107,30 @@ def process_raw_question(question, question_type, mode, img_id, hop=0, sep_token
     return processed_question
 
 
-def process_context_and_qas(context, qas):
-    docs = {doc['id']: doc for doc in context['documents']}
-    
-    info = []
-    img_urls = {}
-    for qa in qas:
-        metadata = qa['metadata']
+def process_question(raw_data, image_docs):
+    metadata = raw_data['metadata']
+    answers, question_type, raw_answers = None, None, None
+    if 'answers' in raw_data:
+        raw_answers = raw_data['answers']
+    img_ids = metadata['image_doc_ids']
+    if raw_answers is not None:
         question_type = metadata['type']
-        if question_type == 'ImageQ':
-            img_ids = [metadata['wiki_entities_in_question'][0]['wiki_title']]
-            answers = [qa['answers'][0]['answer']]
-            img_urls[img_ids[0]] = metadata['image_url']
-        elif question_type == 'ImageListQ':
-            entities = metadata['wiki_entities_in_question_names']
-            correct_answers = {am['answer'] for am in qa['answers']}
-            assert len(metadata['image_urls']) == len(entities)
-            img_ids, answers = [], []
-            for img_url, img_id in zip(metadata['image_urls'], entities):
-                answer = IS_ANSWER_TOK if img_id in correct_answers else IS_NOT_ANSWER_TOK
-                img_ids.append(img_id)
-                answers.append(answer)
-                img_urls[img_id] = img_url
-        elif question_type in [
-            'Compose(ImageQ,TextQ)', 'Compose(ImageQ,TableQ)']:
-            assert len(metadata['arg2_meta']['wiki_entities_in_question']) == 1
-            assert len(qa['answers']) == 1
-            img_ids = [metadata['arg2_meta']['wiki_entities_in_question'][0]['wiki_title']]
-            answers = [qa['answers'][0]['answer']]
-            img_urls[img_ids[0]] = metadata['arg2_meta']['image_url']
+        if question_type in [
+            'ImageQ', 'Compose(ImageQ,TextQ)', 'Compose(ImageQ,TableQ)']:
+            answers = [raw_answers[0]['answer']]
+            assert len(answers) == 1
+            answer = answers[0]
+            correct_img_ids = [doc['doc_id'] for doc in raw_data['supporting_context'] if doc['doc_part'] == 'image']
+            assert len(correct_img_ids) == 1
+            correct_img_id = correct_img_ids[0]
+            answers = []
+            for img_id in img_ids:
+                if img_id == correct_img_id:
+                    answers.append(answer)
+                else:
+                    answers.append(DISTRACTOR_TOK)
         elif question_type in {
+                'ImageListQ',
                 'Compose(TextQ,ImageListQ)',
                 'Compare(Compose(TableQ,ImageQ),Compose(TableQ,TextQ))',
                 'Compare(Compose(TableQ,ImageQ),TableQ)',
@@ -192,19 +139,29 @@ def process_context_and_qas(context, qas):
                 'Intersect(ImageListQ,TextQ)',
                 }:
             try:
-                arg = 'arg2' if question_type == 'Intersect(ImageListQ,TextQ)' else 'arg1'
-                assert metadata[arg+'_modality'][0] == 'image'
-                entities = metadata[arg+'_meta']['wiki_entities_in_question_names']
-                correct_answers = {am['answer'] for am in metadata[arg+'_answers']}
+                
+                if question_type == 'ImageListQ':
+                    correct_img_ids = [doc['doc_id'] for doc in raw_data['supporting_context'] if doc['doc_part'] == 'image']
+                    assert len(correct_img_ids) > 0
+                else:
+                    correct_img_ids = []
+                    idx = 1 if question_type == 'Intersect(ImageListQ,TextQ)' else 0
+                    for doc in metadata['intermediate_answers'][idx]:
+                        if doc['modality'] == 'image':
+                            for img_instance in doc['image_instances']:
+                                assert img_instance['doc_part'] == 'image'
+                                correct_img_ids.append(img_instance['doc_id'])
+                    
+                assert len(correct_img_ids) > 0
+                for correct_img_id in correct_img_ids:
+                    if correct_img_id not in img_ids:
+                        img_ids.append(correct_img_id)
                 if question_type in QUESTION_TYPES_WITH_SINGLE_CORRECT_ANS:
-                    assert len(correct_answers) == 1
-                img_ids, answers = [], []
-                urls = metadata[arg+'_meta']['image_urls']
-                assert len(urls) == len(entities), 'Unexpected length mismatch: entities %d, urls: %d' % (len(entities), len(urls))
-                for img_id, img_url in zip(entities, urls):
-                    img_urls[img_id] = img_url
-                    answer = IS_ANSWER_TOK if img_id in correct_answers else IS_NOT_ANSWER_TOK
-                    img_ids.append(img_id)
+                    assert len(correct_img_ids) == 1
+                
+                answers = []
+                for img_id in img_ids:
+                    answer = IS_ANSWER_TOK if img_id in correct_img_ids else IS_NOT_ANSWER_TOK
                     answers.append(answer)
             except Exception as e:
                 print(traceback.format_exc())
@@ -214,58 +171,34 @@ def process_context_and_qas(context, qas):
             import pdb; pdb.set_trace()
             raise ValueError('Question type %s should be supported.' % question_type)
         else:
-            # Non image types. Add to image urls just to be sure.
-            for doc_id in metadata['image_doc_ids']:
-                doc = docs[doc_id]
-                img_id = doc['image']['title']
-                img_urls[img_id] =  doc['image']['url']
-            continue
-         
-        if question_type in IMAGE_AS_SECOND_HOP_QUESTION_TYPES:
-            hop = 1
-            if question_type in ['Compose(ImageQ,TableQ)', 'Compose(ImageQ,TextQ)']:
-                golden_bridge_entities = [img_ids[0]]
-            elif question_type in ['Intersect(ImageListQ,TextQ)']:
-                golden_bridge_texts = {am['answer'] for am in metadata['arg2_answers']}
-                text_to_title = {e['text']: e['wiki_title'] for e in metadata['wiki_entities_in_question']}
-                golden_bridge_entities = {
-                    text_to_title[text] for text in golden_bridge_texts
-                    if text in text_to_title and text_to_title[text] in img_ids
-                }
-                for entity in metadata['wiki_entities_in_answers']:
-                    golden_bridge_entities.add(entity['wiki_title'])
-                golden_bridge_entities = list(golden_bridge_entities)
-                for entity in golden_bridge_entities:
-                    assert entity in img_ids
-            else:
-                raise NotImplementedError('Unsupported second hop type: %s' % question_type)
+            return None
+        
+    if question_type in IMAGE_AS_SECOND_HOP_QUESTION_TYPES:
+        hop = 1
+        if question_type in ['Compose(ImageQ,TableQ)', 'Compose(ImageQ,TextQ)']:
+            golden_bridge_entities = [img_ids[0]]
+        elif question_type in ['Intersect(ImageListQ,TextQ)']:
+            golden_bridge_entities = [doc['doc_id'] for doc in raw_data['supporting_context'] if doc['doc_part'] == 'image']
+            assert len(golden_bridge_entities) > 0
+            for img_id in golden_bridge_entities:
+                assert img_id in img_ids
         else:
-            hop = 0
-            golden_bridge_entities = []
-        
-        # Add distractors.
-        for doc_id in metadata['image_doc_ids']:
-            doc = docs[doc_id]
-            img_id = doc['image']['title']
-            if img_id in img_ids:
-                continue
-            img_url = doc['image']['url']
-            img_urls[img_id] = img_url
-            img_ids.append(img_id)
-            answers.append(DISTRACTOR_TOK)
-        
-        if not img_ids:
-            import pdb; pdb.set_trace()
-        info.append({
-            'img_ids': img_ids,
-            'answers': answers,
-            'question': qa['question'],
-            'question_type': question_type,
-            'question_id': qa['qid'],
-            'golden_bridge_entities': golden_bridge_entities,
-            'hop': hop,
-        })
-    return info, img_urls
+            raise NotImplementedError('Unsupported second hop type: %s' % question_type)
+    else:
+        hop = 0
+        golden_bridge_entities = []
+    
+    
+    info = {
+        'img_ids': img_ids,
+        'answers': answers,
+        'question': raw_data['question'],
+        'question_type': question_type,
+        'question_id': raw_data['qid'],
+        'golden_bridge_entities': golden_bridge_entities,
+        'hop': hop,
+    }
+    return info
     
 
 def get_raw_dataset(data_dir, try_cache=True, splits=['train', 'dev', 'test']):
@@ -285,7 +218,15 @@ def get_raw_dataset(data_dir, try_cache=True, splits=['train', 'dev', 'test']):
         idx2answer, answer2idx = pickle.load(open(os.path.join(cache_dir, 'vocab.pickle'), 'rb'))
         return dataset, idx2answer, answer2idx
     os.makedirs(cache_dir, exist_ok=True)
-    img_local_paths = download_images(data_dir, splits)
+
+    img_local_paths = {}
+    img_docs = read_jsonl(os.path.join(data_dir, 'MMQA_images.jsonl'))
+    for img_info in img_docs:
+        img_id = img_info['id']
+        img_path = os.path.join(data_dir, 'img', img_info['path'])
+        img_local_paths[img_id] = img_path
+    img_docs = {doc['id']: doc for doc in img_docs}
+
     img_feature_filenames = get_img_features(data_dir, img_local_paths)
     dataset = {}
 
@@ -293,22 +234,22 @@ def get_raw_dataset(data_dir, try_cache=True, splits=['train', 'dev', 'test']):
     for split in splits:
         print('Loading data from %s split' % split)
         dataset[split] = {}
-        filename = os.path.join(data_dir, 'MultiModalQA_%s.jsonl' % split)
+        filename = os.path.join(data_dir, 'MMQA_%s.jsonl' % split)
         with open(filename, 'r') as f:
             lines = [l.strip() for l in f.readlines()]
         raw_data = [json.loads(d) for d in lines]
-        for raw_d in raw_data:
-            context = raw_d['context']
-            qas = raw_d['qas']
-            processed_d, _ = process_context_and_qas(context, qas)
-            for d in processed_d:
-                question_id = d['question_id']
-                assert len(d['img_ids']) == len(d['answers'])
-                for answer in d['answers']:
+        for row in raw_data:
+            processed_data = process_question(row, img_docs)
+            if processed_data is None:
+                continue
+            question_id = processed_data['question_id']
+            if split != 'test':
+                assert len(processed_data['img_ids']) == len(processed_data['answers'])
+                for answer in processed_data['answers']:
                     all_answers.add(answer)
-                filenames = [img_feature_filenames[img_id] for img_id in d['img_ids']]
-                dataset[split][question_id] = d
-                dataset[split][question_id]['img_features_files'] = filenames
+            filenames = [img_feature_filenames[img_id] for img_id in processed_data['img_ids']]
+            dataset[split][question_id] = processed_data
+            dataset[split][question_id]['img_features_files'] = filenames
 
         print('Done with split ' + split)
     print('Dumping pickled data.')

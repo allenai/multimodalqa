@@ -82,8 +82,9 @@ def validate(epoch, loader, model, device):
     return loss, acc
 
 def train_and_eval(hparams, model_suffix='', use_tqdm=True):
-    datadir = os.path.join(basedir, '../downloads/MMQA')
+    datadir = os.path.join(basedir, '../../dataset')
     checkpoint_dir = os.path.join(basedir, 'checkpoints')
+    os.makedirs(checkpoint_dir, exist_ok=True)
     datasets, idx2answer, answer2idx = get_raw_dataset(datadir, try_cache=not hparams['force_data_reload'])
 
     tokenizer = BertTokenizer.from_pretrained('bert-base-uncased', do_lower_case=True)
@@ -101,7 +102,7 @@ def train_and_eval(hparams, model_suffix='', use_tqdm=True):
 
     num_labels = len(idx2answer)
 
-    vilbert_dir = os.path.join(basedir, '../downloads/vilbert')
+    vilbert_dir = os.path.join(basedir, '../../deps/vilbert-multi-task')
     model = VilbertForMQA(
         vilbert_pretrained_model_name_or_path=os.path.join(vilbert_dir, "multi_task_model.bin"),
         config=get_config(vilbert_dir),

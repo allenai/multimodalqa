@@ -22,9 +22,9 @@ class FeatureExtractor:
         self.detection_model = self._build_detection_model()
 
     def get_parser(self):
-        vilbert_dir = os.path.join(basedir, '../downloads/vilbert/')
-        parser = SimpleNamespace(model_file=os.path.join(vilbert_dir, 'detectron_model.pth'),
-                                 config_file=os.path.join(vilbert_dir, 'detectron_config.yaml'),
+        vilbert_dir = os.path.join(basedir, '../../deps/vilbert-multi-task/')
+        parser = SimpleNamespace(model_file=os.path.join(vilbert_dir, 'data', 'detectron_model.pth'),
+                                 config_file=os.path.join(vilbert_dir, 'data', 'detectron_config.yaml'),
                                  batch_size=1,
                                  num_features=100,
                                  feature_name="fc6",

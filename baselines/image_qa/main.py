@@ -181,7 +181,7 @@ def parse_args():
     parser.add_argument(
         '--data_dir',
         type=str,
-        default=os.path.join(basedir, '../downloads/MMQA/'),
+        default=os.path.join(basedir, 'datasets'),
         help="Directory where data is stored."
     )
 
