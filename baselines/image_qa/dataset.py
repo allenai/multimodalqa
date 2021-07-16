@@ -182,6 +182,7 @@ def process_question(raw_data, image_docs):
             assert len(golden_bridge_entities) > 0
             for img_id in golden_bridge_entities:
                 assert img_id in img_ids
+            golden_bridge_entities = [image_docs[img_id]['title'] for img_id in golden_bridge_entities]
         else:
             raise NotImplementedError('Unsupported second hop type: %s' % question_type)
     else:

@@ -238,9 +238,9 @@ if __name__ == '__main__':
     vocab_filename = os.path.join(basedir, '../../dataset/cache/vocab.pickle')
     img_features_dir = os.path.join(basedir, '../../dataset/img_features')
     device = 'cuda:1'
-    question = "Is this picture of Margaret Court in color?"
+    question = "What shape is in the center of Viduthalal Chiruthaigal Katchi?"
     question_type = "ImageQ"
-    img_ids_or_paths = ['c3098661477a7e46f87d3f229f608fbd']
+    img_ids_or_paths = ['e7a17bf9eb43fbe95843f682a03b0eb3']
 
     inference_model = InferenceModel(checkpoint_filename, vocab_filename, device, mode, img_features_dir)
     print('Running inference on question:', question)
