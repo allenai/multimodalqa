@@ -9,6 +9,7 @@ baselines/data/
 baselines/output/
 baselines/image_qa/training_stats/
 baselines/image_qa/checkpoints/
+baselines/image_qa/analysis/
 deps/vilbert-multi-task/data/
 deps/vilbert-multi-task/save/
 deps/vilbert-multi-task/multi_task_model*

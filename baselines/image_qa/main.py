@@ -83,6 +83,7 @@ def analyse(model, dataset, device, idx2answer, use_distractors, mode):
                 print('='*50)
                 print('Printing example (' + data['question_type'] + ')')
                 print('All img ids:', data['img_ids'])
+                print('All img names:', data['img_names'])
                 print('Bridge entities:', bridge_entities)
                 print('Questions:')
                 for question in raw_questions:
@@ -120,7 +121,7 @@ def parse_args():
     )
     parser.add_argument(
         "--frozen_epochs",
-        type=float,
+        type=int,
         default=25,
         help="Number of epochs to train with frozen backbone"
     )
@@ -138,7 +139,7 @@ def parse_args():
     )
     parser.add_argument(
         "--unfrozen_epochs",
-        type=float,
+        type=int,
         default=50,
         help="Number of epochs to train with full model"
     )
@@ -181,7 +182,7 @@ def parse_args():
     parser.add_argument(
         '--data_dir',
         type=str,
-        default=os.path.join(basedir, 'datasets'),
+        default=os.path.join(basedir, '../../dataset'),
         help="Directory where data is stored."
     )
 
@@ -233,7 +234,7 @@ if __name__ == '__main__':
 
     datasets, idx2answer, answer2idx = get_raw_dataset(datadir)
     dev_dataset = VQADataset(
-        datasets['test'], tokenizer, answer2idx, mode=hparams['mode'])
+        datasets['dev'], tokenizer, answer2idx, mode=hparams['mode'])
 
     for stat_name in ['train_acc', 'train_loss', 'val_acc', 'val_loss']:
         fig = plt.figure()
@@ -245,8 +246,8 @@ if __name__ == '__main__':
     print('='*100)
     print('Done training (mode=%s). Initiating analysis.' % mode)
     all_stats = {
-        'with_distractors': analyse(model, dev_dataset, device, idx2answer, True, mode),
-        'no_distractors': analyse(model, dev_dataset, device, idx2answer, False, mode)
+        'with_distractors': analyse(model, dev_dataset, args.device, idx2answer, True, mode),
+        'no_distractors': analyse(model, dev_dataset, args.device, idx2answer, False, mode)
     }
     for stats_name, stats in all_stats.items():
         print('Stats breakdown: (%s)' % stats_name)

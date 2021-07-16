@@ -92,16 +92,16 @@ def get_img_features(data_dir, img_paths):
     return img_feature_filenames
 
 
-def process_raw_question(question, question_type, mode, img_id, hop=0, sep_token='[SEP]'):
+def process_raw_question(question, question_type, mode, img_name, hop=0, sep_token='[SEP]'):
     if mode in ['implicit_decomp', 'auto_routing']:
         processed_question = (
             f'{question_type} {sep_token} '
             f'HOP={hop} {sep_token} '
             f'{question} {sep_token} '
-            f'{img_id}'
+            f'{img_name}'
         )
     elif mode == 'context_only':
-        processed_question = f'{img_id}'
+        processed_question = f'{img_name}'
     else:
         raise ValueError('Unsupported mode: %s' % mode)
     return processed_question
@@ -191,6 +191,7 @@ def process_question(raw_data, image_docs):
     
     info = {
         'img_ids': img_ids,
+        'img_names': [image_docs[img_id]['title'] for img_id in img_ids],
         'answers': answers,
         'question': raw_data['question'],
         'question_type': question_type,
@@ -295,7 +296,7 @@ def process_raw_inputs(inputs, tokenizer, answer2idx, mode):
         question=inputs['question'],
         question_type= inputs['question_type'],
         mode=mode,
-        img_id=inputs['img_id'],
+        img_name=inputs['img_name'],
         hop=inputs['hop']
     )
     
@@ -313,7 +314,7 @@ def process_raw_inputs(inputs, tokenizer, answer2idx, mode):
         target = answer2idx[answer]
         outputs['answers'] = torch.tensor([target])
 
-    extra_feature_names = ['question_id', 'question_type', 'img_id']
+    extra_feature_names = ['question_id', 'question_type', 'img_id', 'img_name']
     for feature_name in extra_feature_names:
         outputs[feature_name] = inputs[feature_name]
             
@@ -388,6 +389,7 @@ class VQADataset(Dataset):
             'question': self.data[qid]['question'],
             'img_features_file': self.data[qid]['img_features_files'][index],
             'img_id': self.data[qid]['img_ids'][index],
+            'img_name': self.data[qid]['img_names'][index],
             'answer': self.data[qid]['answers'][index],
             'hop': self.data[qid]['hop'],
         }
