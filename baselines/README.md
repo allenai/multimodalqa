@@ -2,15 +2,12 @@
 This repo contains the code for running the baselines of the ICLR 2021 paper [MultiModalQA: Complex Question Answering over Text, Tables and Images](https://arxiv.org/abs/2104.06039).
 
 ## Setup
-Our code is tested on Python 3.7+ and PyTorch 1.5.1.
-Python's virtual or Conda environments are recommended for running our code.
-Run the following command to install the required libraries.
+Our code is tested on Python 3.7+ and PyTorch 1.5.1. Python's virtual or Conda environments are recommended for running our code. Run the following command to install the required libraries.
 ```bash
 pip install -r requirements.txt
 ```
-Our code also relies on [APEX](https://github.com/NVIDIA/apex#linux), [Vilbert](https://github.com/facebookresearch/vilbert-multi-task#repository-setup) and [MaskRCNN](https://github.com/facebookresearch/maskrcnn-benchmark/blob/master/INSTALL.md) to run.
-Please refer to their individual documentation for installation.
-Note that if you encounter errors about `AT_CHECK`, probably [this](https://github.com/facebookresearch/maskrcnn-benchmark/issues/1307) can solve the problem.
+Our code also relies on [APEX](https://github.com/NVIDIA/apex#linux), [Vilbert](https://github.com/facebookresearch/vilbert-multi-task#repository-setup) and [MaskRCNN](https://github.com/facebookresearch/maskrcnn-benchmark/blob/master/INSTALL.md). Please refer to their individual documentation for installation.
+Note that if you encounter errors about `AT_CHECK`, probably [this thread](https://github.com/facebookresearch/maskrcnn-benchmark/issues/1307) can solve the problem.
 
 ## Downloading data and models
 
@@ -37,11 +34,12 @@ python pipeline.py \
   --method implicit_decomp
 ```
 By adding the `--predict_only` argument, the same code can be used to predict answers for the test set without evaluating the final metrics.
+
 We also have a script for evaluating all of our baselines (`implicit_decomp`, `auto-routing`, `context-only`) together on the dev set:
 ```bash
 ./scripts/run_pipeline.sh
 ```
-The dev performance is as follows:
+This will run all the evaluation in the background in parallel and print log to the `logs/` dir. The dev performance is as follows:
 
 |                | Single-Modality | Multi-Modality |      All      |
 |:--------------:|:---------------:|:--------------:|:-------------:|
@@ -50,5 +48,5 @@ The dev performance is as follows:
 | ImplicitDecomp |  51.60 / 58.35  |  44.59 / 51.19 | 48.79 / 55.48 |
 
 ## Training Models
-Our models for different modalities are trained separately.
-Please refer to the individual `README.md` in the `text/table/image_qa` folder for training the corresponding model.
+
+Our models for different modalities are trained separately. Please refer to the individual `README.md` in the `text_qa` / `table_qa` / `image_qa` folder for training the corresponding model.
