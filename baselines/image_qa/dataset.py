@@ -46,26 +46,6 @@ AUTO_ROUTING_QTYPES = IMAGE_SINGLE_HOP_QUESTION_TYPES + IMAGE_AS_SECOND_HOP_QUES
 basedir = os.path.dirname(os.path.abspath(__file__))
 
 
-def zip_images(data_dir, splits):
-    print('Zipping data for splits %s.' % splits)
-    name = '_'.join(splits)
-    img_local_paths = download_images(data_dir, splits)
-    img_ft_filenames = get_img_features(data_dir, img_local_paths)    
-    info_file = os.path.join(data_dir, name + '_img_info.pickle')
-    pickle.dump(img_ft_filenames, open(info_file, 'wb'))
-    print('Total files being zipped: %d files' % len(img_ft_filenames))
-    with ZipFile(os.path.join(data_dir, name + '_img_features.zip'), 'w') as z:
-        z.write(info_file)
-        for filename in img_ft_filenames.values():
-            z.write(filename)
-
-
-def read_jsonl(filename):
-    with open(filename, 'r') as f:
-        data = [json.loads(l.strip()) for l in f.readlines()]
-    return data
-
-
 def get_img_features(data_dir, img_paths):
     print('Getting image features.')
     img_features_dir = os.path.join(data_dir, 'img_features')
@@ -407,5 +387,3 @@ class VQADataset(Dataset):
 if __name__ == '__main__':
     datadir = os.path.join(basedir, '../../data')
     get_raw_dataset(datadir, try_cache=False, splits=['train', 'dev', 'test'])
-
-    

@@ -30,13 +30,9 @@ class TableInferenceModel:
         assert mode in {'base', 'implicit_decomp', 'context_only'}
         self.mode = mode
 
-    def predict(self, args, question, table, qtype=None, hop=None, bridge_entity=None):
+    def predict(self, args, question, table, question_type=None, hop=None, bridge_entity=None):
         if not table:
             return "Empty answer: no table context is provided."
-        # if not question:
-        #     return "Empty answer: no question context is provided."
-        if isinstance(table, list):
-            table = table[0]
 
         # support json str input
         if isinstance(table, str):
@@ -47,7 +43,7 @@ class TableInferenceModel:
 
         if self.mode == "implicit_decomp":
             question = process_question_for_implicit_decomp(
-                question, qtype, hop, bridge_entity, sep_token=self.tokenizer.sep_token
+                question, question_type, hop, bridge_entity, sep_token=self.tokenizer.sep_token
             )
         elif self.mode == "context_only":
             question = ""
@@ -129,9 +125,6 @@ def parse_args():
     parser.add_argument("--max_query_length", default=64, type=int,
                         help="The maximum number of tokens for the question. Questions longer than this will "
                              "be truncated to this length.")
-    parser.add_argument("--n_best_size", default=20, type=int,
-                        help="The total number of n-best predictions to generate in the nbest_predictions.json "
-                             "output file.")
     parser.add_argument("--max_answer_length", default=30, type=int,
                         help="The maximum length of an answer that can be generated. This is needed because the start "
                              "and end predictions are not conditioned on one another.")

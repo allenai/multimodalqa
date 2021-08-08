@@ -59,7 +59,7 @@ def get_answers(
     elif question_type in IMAGE_AS_SECOND_HOP_QUESTION_TYPES and mode not in ['auto_routing', 'context_only']:
         assert bridge_entities is not None
         assert isinstance(bridge_entities, list)
-        bad_indexes = [idx for idx, img_id in enumerate(raw_data['img_names']) if img_id not in bridge_entities]
+        bad_indexes = [idx for idx, img_name in enumerate(raw_data['img_names']) if img_name not in bridge_entities]
 
     num_samples = len(raw_data['img_names'])
     if has_answers: assert len(raw_data['answers']) == num_samples
@@ -158,9 +158,9 @@ def get_answers(
     return predicted_answers, raw_questions
 
 
-class InferenceModel():
-    def __init__(self, checkpoint_path, vocab_filename, device, mode, img_features_dir=None, use_distractors=True):
-        vilbert_dir = os.path.join(basedir, '../../deps/vilbert-multi-task/')
+class InferenceModel:
+    def __init__(self, checkpoint_path, vilbert_dir, img_info_path,
+                 vocab_path, device, mode, img_features_dir=None, use_distractors=True):
         self.device = device
         assert mode in {'auto_routing', 'implicit_decomp', 'context_only'}
         self.use_distractors = use_distractors
@@ -168,10 +168,10 @@ class InferenceModel():
         self.tokenizer = BertTokenizer.from_pretrained('bert-base-uncased', do_lower_case=True)
         self.tokenizer.pad_token_id = self.tokenizer.convert_tokens_to_ids([self.tokenizer.pad_token])[0]
 
-        self.img_docs = read_jsonl(os.path.join(basedir, '../../dataset/MMQA_images.jsonl'))
+        self.img_docs = read_jsonl(img_info_path)
         self.img_docs = {doc['id']: doc for doc in self.img_docs}
 
-        self.idx2answer, self.answer2idx = pickle.load(open(vocab_filename, 'rb'))
+        self.idx2answer, self.answer2idx = pickle.load(open(vocab_path, 'rb'))
         self.num_labels = len(self.idx2answer)
         self.model = VilbertForMQA(
             os.path.join(vilbert_dir, "multi_task_model.bin"),
@@ -182,7 +182,7 @@ class InferenceModel():
             dropout_prob=0)
 
         if checkpoint_path is not None:
-            print("Loading model weights from checkpoint: %s" % checkpoint_path)
+            # print("Loading model weights from checkpoint: %s" % checkpoint_path)
             self.model.load_state_dict(torch.load(checkpoint_path, device))
 
         self.model.eval()
@@ -236,13 +236,16 @@ if __name__ == '__main__':
     mode = 'implicit_decomp'
     checkpoint_filename = os.path.join(basedir, 'checkpoints', 'my_model.pt')
     vocab_filename = os.path.join(basedir, '../../dataset/cache/vocab.pickle')
+    vilbert_dir = os.path.join(basedir, "../../deps/vilbert-multi-task")
+    img_info_path = os.path.join(basedir, '../../dataset/MMQA_images.jsonl')
     img_features_dir = os.path.join(basedir, '../../dataset/img_features')
     device = 'cuda:1'
     question = "What shape is in the center of Viduthalal Chiruthaigal Katchi?"
     question_type = "ImageQ"
     img_ids_or_paths = ['e7a17bf9eb43fbe95843f682a03b0eb3']
 
-    inference_model = InferenceModel(checkpoint_filename, vocab_filename, device, mode, img_features_dir)
+    inference_model = InferenceModel(
+        checkpoint_filename, vilbert_dir, img_info_path, vocab_filename, device, mode, img_features_dir)
     print('Running inference on question:', question)
     pred = inference_model.predict(question, img_ids_or_paths, question_type)
     print('='*50)

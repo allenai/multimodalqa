@@ -35,7 +35,6 @@ MODEL_TYPES = tuple(conf.model_type for conf in MODEL_CONFIG_CLASSES)
 
 def read_jsonlines(file_name):
     lines = []
-    print("loading examples from {0}".format(file_name))
     with jsonlines.open(file_name) as reader:
         for obj in reader:
             lines.append(obj)
@@ -51,7 +50,6 @@ class TextInferenceModel:
                  model_dir,
                  do_lower_case,
                  device, mode):
-        print('initializing Reader...', flush=True)
         self.config = AutoConfig.from_pretrained(model_dir)
         if self.config.model_type == "bert":
             self.model = BertForQuestionAnsweringYesNo.from_pretrained(

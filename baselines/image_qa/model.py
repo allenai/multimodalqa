@@ -109,17 +109,6 @@ def get_config(vilbert_dir):
         clean_train_sets=True
     )
     config = BertConfig.from_json_file(args.config_file)
-    with open(os.path.join(vilbert_dir, 'vilbert_tasks.yml'), 'r') as f:
-        task_cfg = edict(yaml.safe_load(f))
-
-    task_names = []
-    for i, task_id in enumerate(args.tasks.split('-')):
-        task = 'TASK' + task_id
-        name = task_cfg[task]['name']
-        task_names.append(name)
-
-    timeStamp = args.from_pretrained.split('/')[-1] + '-' + args.save_name
-    config = BertConfig.from_json_file(args.config_file)
 
     if args.predict_feature:
         config.v_target_size = 2048

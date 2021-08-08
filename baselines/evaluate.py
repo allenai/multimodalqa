@@ -3,8 +3,8 @@ import argparse
 import re
 import string
 import numpy as np
-from collections import namedtuple, Counter
-from typing import Any, Dict, List, Set, Tuple, Union, Optional
+from collections import Counter
+from typing import List, Set, Tuple, Union
 from scipy.optimize import linear_sum_assignment
 from word2number.w2n import word_to_num
 from common_utils import *
@@ -213,36 +213,32 @@ def evaluate_predictions(predictions, gold_answers, example_types=None):
         return eval_scores, instance_eval_results
 
 
-def evaluate_prediction_file(prediction_path, gold_path, save_instance_eval_result_path=None):
+def evaluate_prediction_file(prediction_path, gold_path):
     predicted_answers = json.load(open(prediction_path, encoding="utf-8"))
-    Example = namedtuple("Example", ["qas_id", "question_type", "question", "ref_answers", "answer_modality"])
-    eval_examples = []
-    with open(gold_path, encoding="utf8") as fin:
-        for line in fin:
-            line_data = json.loads(line)
-            for qa in line_data["qas"]:
-                qid = qa["qid"]
-                question_type = qa["metadata"]["type"]
-                if len(qa["answers"]) == 0:
-                    print("No annotation for question {}".format(qa["qid"]))
-                    continue
-                ground_truth_answer = [str(item["answer"]) for item in qa["answers"]]
-                # currently we only have one ground truth answer,
-                # but our evaluation script would support multiple annotated answers in the future.
-                ref_answers = [ground_truth_answer]
-                answer_modality = set([item["modality"] for item in qa["answers"]])
-                assert len(answer_modality) == 1
-                answer_modality = answer_modality.pop()
-                eval_examples.append(Example(qid, question_type, qa["question"], ref_answers, answer_modality))
-    gold_answers = {e.qas_id: e.ref_answers for e in eval_examples}
+    examples = read_jsonl(gold_path)
+    gold_answers, answer_modalities, hop_types, question_types = {}, {}, {}, {}
+    for example in examples:
+        qid = example["qid"]
+        # Currently we only have one ground truth answer.
+        # Even if there are multiple entries in example["answers"], the whole list should be regarded as one ref answer.
+        # However, our script supports evaluation with multiple ref answers.
+        # So, we will use an outer bracket here to pretend we have a list of ref answers.
+        gold_answer = [str(item["answer"]) for item in example["answers"]]
+        gold_answers[qid] = [gold_answer]
+        answer_modality = set([item["modality"] for item in example["answers"]])
+        assert len(answer_modality) == 1
+        answer_modalities[qid] = answer_modality.pop()
+        question_types[qid] = example["metadata"]["type"]
+        hop_types[qid] = "Multi-hop" if example["metadata"]["type"] in MULTI_HOP_QUESTION_TYPES else "Single-hop"
 
-    answer_modalities = {e.qas_id: e.answer_modality for e in eval_examples}
-    modality_counts = Counter(answer_modalities.values())
-    eval_scores, instance_eval_results, eval_scores_by_modalities = \
-        evaluate_predictions(predicted_answers, gold_answers, answer_modalities)
+    eval_scores, instance_eval_results = evaluate_predictions(predicted_answers, gold_answers)
     print("\n\nOverall result with different metrics: ")
     for metric, value in eval_scores.items():
         print(f"{metric}: {value}")
+
+    modality_counts = Counter(answer_modalities.values())
+    _, _, eval_scores_by_modalities = \
+        evaluate_predictions(predicted_answers, gold_answers, answer_modalities)
     print("\n\nEval results for different modalities:")
     for answer_modality in sorted(eval_scores_by_modalities.keys()):
         result = eval_scores_by_modalities[answer_modality]
@@ -251,44 +247,19 @@ def evaluate_prediction_file(prediction_path, gold_path, save_instance_eval_resu
         for metric, value in result.items():
             print(f"{metric}: {value}")
 
-    single_modal_qtypes = \
-        TEXT_SINGLE_HOP_QUESTION_TYPES + TABLE_SINGLE_HOP_QUESTION_TYPES + IMAGE_SINGLE_HOP_QUESTION_TYPES
-    hop_types = {
-        e.qas_id: "Single-modal" if e.question_type in single_modal_qtypes else "Multi-modal" for e in eval_examples
-    }
     hop_type_counts = Counter(hop_types.values())
-    eval_scores, instance_eval_results, eval_scores_by_hop_types = \
-        evaluate_predictions(predicted_answers, gold_answers, hop_types)
+    _, _, eval_scores_by_hop_types = evaluate_predictions(predicted_answers, gold_answers, hop_types)
     print("\n\nType\tCount\tEM\tF1")
     for hop_type in sorted(eval_scores_by_hop_types.keys()):
         result = eval_scores_by_hop_types[hop_type]
         print(f"{hop_type}\t{hop_type_counts[hop_type]}\t{result['list_em']}\t{result['list_f1']}")
 
-    question_types = {e.qas_id: e.question_type for e in eval_examples}
     question_type_counts = Counter(question_types.values())
-    eval_scores, instance_eval_results, eval_scores_by_qtypes = \
-        evaluate_predictions(predicted_answers, gold_answers, question_types)
+    _, _, eval_scores_by_qtypes = evaluate_predictions(predicted_answers, gold_answers, question_types)
     print("\n\nType\tCount\tEM\tF1")
     for question_type in sorted(eval_scores_by_qtypes.keys()):
         result = eval_scores_by_qtypes[question_type]
         print(f"{question_type}\t{question_type_counts[question_type]}\t{result['list_em']}\t{result['list_f1']}")
-    if save_instance_eval_result_path:
-        with open(args.save_instance_eval_result_path, "w") as fout:
-            metrics = list(instance_eval_results[eval_examples[0].qas_id].keys())
-            fout.write(
-                f"qid\tquestion\tquestion_type\tanswer modality\tgold_answers\tprediction\t" + "\t".join(metrics) + "\n"
-            )
-            for example in eval_examples:
-                info_to_write = [
-                    example.qas_id,
-                    example.question,
-                    example.question_type,
-                    example.answer_modality,
-                    json.dumps(example.ref_answers),
-                    json.dumps(predicted_answers[example.qas_id])
-                ]
-                info_to_write += [str(float(instance_eval_results[example.qas_id][metric])) for metric in metrics]
-                fout.write("\t".join(info_to_write) + "\n")
     return eval_scores
 
 
@@ -306,11 +277,5 @@ if __name__ == "__main__":
         default="dev.json",
         help="location of the gold file",
     )
-    parser.add_argument(
-        "--save_instance_eval_result_path",
-        type=str,
-        required=False,
-        help="location to save the evaluation scores of each instance"
-    )
     args = parser.parse_args()
-    evaluate_prediction_file(args.prediction_path, args.gold_path, args.save_instance_eval_result_path)
+    evaluate_prediction_file(args.prediction_path, args.gold_path)
